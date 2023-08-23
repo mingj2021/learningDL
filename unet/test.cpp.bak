@@ -1,0 +1,51 @@
+#include "unet_model.h"
+#include <opencv2/opencv.hpp>
+#include <sstream>
+#include "dataloaders.h"
+
+using torch::indexing::Slice;
+int main(int argc, char const *argv[])
+{
+    torch::DeviceType device_type;
+    if (torch::cuda::is_available())
+    {
+        std::cout << "CUDA available! Training on GPU." << std::endl;
+        device_type = torch::kCUDA;
+    }
+    else
+    {
+        std::cout << "Training on CPU." << std::endl;
+        device_type = torch::kCPU;
+    }
+    torch::Device device(device_type);
+
+    ModuleHolder<UNet> model(3, 1, false);
+    model->to(device);
+    model->to(torch::kHalf);
+    torch::load(model, "unet.pth");
+
+    auto img = cv::imread("/workspace/learningDL/unet/data/train_hq/0cdf5b5d0ce1_05.jpg");
+    int h0 = img.rows;
+    int w0 = img.cols;
+    cv::resize(img, img, cv::Size(int(w0 * 0.25), int(h0 * 0.25)), 0, 0, cv::INTER_LINEAR);
+    cv::cvtColor(img, img, cv::COLOR_BGR2RGB);
+    img.convertTo(img, CV_32F, 1.0 / 255);
+
+    torch::Tensor inputs =
+        torch::from_blob(img.data, {img.rows, img.cols, img.channels()})
+            .permute({2, 0, 1})
+            .unsqueeze(0)
+            .contiguous()
+            .to(device)
+            .to(torch::kHalf);
+    auto pred = model->forward(inputs);
+    auto h = pred.size(2);
+    auto w = pred.size(3);
+    pred = pred.reshape({h, w}).contiguous() * 255;
+    pred = pred.clamp(0, 255).to(torch::kU8).to(torch::kCPU);
+    cv::Mat img_(pred.size(0), pred.size(1), CV_8U, pred.data_ptr<uchar>());
+    std::cout << img_.size() << std::endl;
+    cv::imwrite("out.png", img_);
+    // cv::imshow("1", img_);
+    // cv::waitKey();
+}
