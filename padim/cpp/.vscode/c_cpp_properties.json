@@ -1,0 +1,20 @@
+{
+    "configurations": [
+        {
+            "name": "linux",
+            "includePath": [
+                "/usr/local/libtorch/include",
+                "/usr/local/libtorch/include/torch/csrc/api/include"
+            ],
+            "browse": {
+                "limitSymbolsToIncludedHeaders": true,
+                "databaseFilename": ""
+            },
+            "intelliSenseMode": "linux-gcc-x64",
+            "compilerPath": "/usr/bin/gcc",
+            "cStandard": "c17",
+            "cppStandard": "gnu++14"
+        }
+    ],
+    "version": 4
+}
