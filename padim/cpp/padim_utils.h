@@ -75,7 +75,7 @@ class Logger : public nvinfer1::ILogger
     }
 } logger;
 
-void export_engine(std::string f)
+void export_engine(std::string f, std::string output="FeatureExtractor.engine")
 {
     // create an instance of the builder
     std::unique_ptr<nvinfer1::IBuilder> builder(createInferBuilder(logger));
@@ -112,7 +112,7 @@ void export_engine(std::string f)
     // auto serializedModel = std::make_unique<nvinfer1::IHostMemory>(builder->buildSerializedNetwork(*network, *config));
     std::unique_ptr<nvinfer1::IHostMemory> serializedModel(builder->buildSerializedNetwork(*network, *config));
     std::cout << "serializedModel->size()" << serializedModel->size() << std::endl;
-    std::ofstream outfile("FeatureExtractor.engine", std::ofstream::out | std::ofstream::binary);
+    std::ofstream outfile(output, std::ofstream::out | std::ofstream::binary);
     outfile.write((char *)serializedModel->data(), serializedModel->size());
 }
 

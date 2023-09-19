@@ -72,8 +72,8 @@ class EfficientNetFeatureExtractor(nn.Module):
             return hook
         self.model.features[1].register_forward_hook(features_extractor('features_1'))
         self.model.features[2].register_forward_hook(features_extractor('features_2'))
-        self.model.features[3].register_forward_hook(features_extractor('features_3'))
-        self.model.features[5].register_forward_hook(features_extractor('features_5'))
+        # self.model.features[3].register_forward_hook(features_extractor('features_3'))
+        # self.model.features[5].register_forward_hook(features_extractor('features_5'))
     
     def forward(self, x):
         self.model(x)
@@ -94,6 +94,7 @@ class PadimModel(nn.Module):
         self.layers = layers
         # self.feature_extractor = FeatureExtractor(backbone=backbone, layers=layers)
         self.feature_extractor = EfficientNetFeatureExtractor()
+        print(self.feature_extractor)
         
         self.n_features_original, self.n_patches = self._deduce_dim(input_size)
         print('---------------------- n_features_original=', self.n_features_original)
@@ -468,7 +469,7 @@ def superimpose_anomaly_map(
 
 def train():
     input_size=(512, 512)
-    model = PadimModel(input_size=input_size, backbone='resnet18', layers=['features_1'])# layers=['layer1','layer2','layer3']
+    model = PadimModel(input_size=input_size, backbone='resnet18', layers=['features_1','features_2'])# layers=['layer1','layer2','layer3']
     ROOT = Path(
         'C:/Users/77274/workspace/projects/anomalib/datasets/MVTec/sampleWafer_1/train/good')
     files = os.listdir(str(ROOT))
@@ -509,7 +510,7 @@ def train():
 
 
     print('---------------',anomaly_map.min(),' ', anomaly_map.max())
-    pred_mask = anomaly_map >= 85
+    pred_mask = anomaly_map >= 285
     pred_boxes = masks_to_boxes(pred_mask)[0][0].numpy()
 
     img = np.array(im)
@@ -529,7 +530,7 @@ def predict():
     inv_covariance = stats['inv_covariance']
     input_size = (512, 512)
     # model = PadimModel(input_size=(256, 256), backbone='resnet18', layers=['layer1','layer2','layer3'])#
-    model = PadimModel(input_size=input_size, backbone='resnet18', layers=['features_1'])# layers=['layer1','layer2','layer3']
+    model = PadimModel(input_size=input_size, backbone='resnet18', layers=['features_1','features_2'])# layers=['layer1','layer2','layer3']
     transforms = torchvision.transforms.Compose(
         [torchvision.transforms.Resize(input_size), torchvision.transforms.ToTensor()])
     ROOT = 'C:/Users/77274/workspace/projects/anomalib/datasets/MVTec/sampleWafer_1/test/broken/'
@@ -542,7 +543,7 @@ def predict():
         predictions = model.anomaly_map_generator(
             embedding=embedding, mean=mean, inv_covariance=inv_covariance)
         anomaly_map = predictions.detach()
-        thres = 145
+        thres = 800
         pred_mask = anomaly_map >= thres
         pred_boxes = masks_to_boxes(pred_mask)[0][0].numpy()
 

@@ -8,7 +8,7 @@ from torchvision.models import resnet18, ResNet18_Weights, \
 resnet101,ResNet101_Weights,  \
 resnet50,ResNet50_Weights,   \
 mobilenet_v3_large,MobileNet_V3_Large_Weights,   \
-mobilenetv2, MobileNet_V2_Weights,mobilenet_v2,swin_v2_t,Swin_V2_T_Weights,swin_v2_s,Swin_V2_S_Weights,   \
+mobilenet_v2, MobileNet_V2_Weights,swin_v2_t,Swin_V2_T_Weights,swin_v2_s,Swin_V2_S_Weights,   \
 vgg16, VGG16_Weights, efficientnet_v2_s, EfficientNet_V2_S_Weights, efficientnet_v2_m, EfficientNet_V2_M_Weights, efficientnet_v2_l, EfficientNet_V2_L_Weights
 
 from random import sample
@@ -80,10 +80,11 @@ class EfficientNetFeatureExtractor(nn.Module):
         self.model(x)
         return self.features
 
-# from torchsummary import summary
-# m = efficientnet_v2_l(weights=EfficientNet_V2_L_Weights.DEFAULT).to('cuda:0')
-# summary(m,(3,256,256),depth=2)
+from torchsummary import summary
+m = efficientnet_v2_l(weights=EfficientNet_V2_L_Weights.DEFAULT).to('cuda:0')
+summary(m,(3,256,256),depth=2)
 # print(1,2,3,5) # 24+48+64+160
+
 class PadimModel(nn.Module):
     def __init__(self,
                  input_size: tuple[int, int],
@@ -98,7 +99,7 @@ class PadimModel(nn.Module):
         
         self.n_features_original, self.n_patches = self._deduce_dim(input_size)
         print('---------------------- n_features_original=', self.n_features_original)
-        self.idx = torch.arange(0,self.n_features_original,step=2,dtype=torch.long)
+        self.idx = torch.arange(0,self.n_features_original,step=3,dtype=torch.long)
         print('---------------------- shape=', self.idx.shape)
         print('---------------------- max=', self.idx.max())
         
@@ -375,7 +376,7 @@ def masks_to_boxes(masks: Tensor, anomaly_maps: Tensor | None = None) -> tuple[l
     """Convert a batch of segmentation masks to bounding box coordinates.
 
     Args:
-        masks (Tensor): Input tensor of shape (B, 1, H, W), (B, H, W) or (H, W)
+        masks (Tensor): Input tensor of shape (B, 1, H, W), (B, H, W) or (H, W) 
         anomaly_maps (Tensor | None, optional): Anomaly maps of shape (B, 1, H, W), (B, H, W) or (H, W) which are
             used to determine an anomaly score for the converted bounding boxes.
 
@@ -469,7 +470,7 @@ def superimpose_anomaly_map(
 
 def train():
     input_size=(512, 512)
-    model = PadimModel(input_size=input_size, backbone='resnet18', layers=['layer1'])# layers=['layer1','layer2','layer3']
+    model = PadimModel(input_size=input_size, backbone='resnet18', layers=['layer1','layer2','layer3'])# layers=['layer1','layer2','layer3']
     # summary(model.to('cuda:0'),(3,256,256),depth=3)
     ROOT = Path(
         'C:/Users/77274/workspace/projects/anomalib/datasets/MVTec/sampleWafer_1/train/good')
@@ -544,7 +545,7 @@ def predict():
         predictions = model.anomaly_map_generator(
             embedding=embedding, mean=mean, inv_covariance=inv_covariance)
         anomaly_map = predictions.detach()
-        thres = 27
+        thres = 90
         pred_mask = anomaly_map >= thres
         pred_boxes = masks_to_boxes(pred_mask)[0][0].numpy()
 

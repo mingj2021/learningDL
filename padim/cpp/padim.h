@@ -14,14 +14,9 @@ namespace F = torch::nn::functional;
 
 struct PadimModelImpl : Module
 {
-    PadimModelImpl(std::tuple<int, int> input_size):// , std::string backbone, std::vector<std::string> layers
+    PadimModelImpl(std::tuple<int, int> input_size, std::string modelFile):// , std::string backbone, std::vector<std::string> layers
     m_input_size(input_size)
     {
-        // if (backbone == "efficientnet_v2_s")
-        // {
-        //     module = torch::jit::load("data/efficientnet_v2_s.pt");
-        // }
-        const std::string modelFile = "FeatureExtractor.engine";
         feature_extractor = std::shared_ptr<FeatureExtractor>(new FeatureExtractor(modelFile));
         auto [n_features_original, n_patches] = feature_extractor->_deduce_dim(input_size);
         auto idx = torch::arange(0, n_features_original, torch::kLong);
@@ -69,9 +64,7 @@ struct PadimModelImpl : Module
         auto [inp_height, inp_width] = m_input_size;
         auto res = feature_extractor->prepareInput(frame, inp_width, inp_height);
         res = feature_extractor->infer();
-        auto preds = feature_extractor->verifyOutput();
-        std::vector<torch::Tensor> features;
-        features.emplace_back(preds.to(device));
+        auto features = feature_extractor->verifyOutput();
         auto embeddings = generate_embedding(features);
 
         

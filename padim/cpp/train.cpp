@@ -5,6 +5,7 @@
 #include "anomaly_map.h"
 #include <limits>
 #include <filesystem>
+#include "baseModel.h"
 
 namespace fs = std::filesystem;
 
@@ -111,7 +112,7 @@ void test_FeatureExtractor()
     res = eng_0->infer();
     std::cout << "------------------infer: " << res << std::endl;
     auto preds = eng_0->verifyOutput();
-    std::cout << "------------------preds size: " << preds.sizes() << std::endl;
+    std::cout << "------------------preds size: " << preds.size() << std::endl;
     std::cout << "done !" << std::endl;
 }
 
@@ -259,7 +260,7 @@ void test_padim()
     }
     torch::Device device(device_type);
 
-    PadimModel model(std::tuple<int, int>(512, 512));
+    PadimModel model(std::tuple<int, int>(512, 512), "efficientnet_v2_s.engine");
     model->to(device);
 
     std::string input_dir = "/workspace/padim/data/sampleWafer_1/train/good";
@@ -290,6 +291,15 @@ void test_padim()
     cv::imwrite("1.png", img_);
 }
 
+void test_base_module()
+{
+    // export_engine("/workspace/padim/data/efficientnet_v2_s.onnx", "efficientnet_v2_s.engine");
+    // export_engine("/workspace/padim/data/mobilenet_v2.onnx", "mobilenet_v2.engine");
+    // export_engine("/workspace/padim/data/resnet18.onnx", "resnet18.engine");
+    // export_engine("/workspace/padim/data/vgg16.onnx", "vgg16.engine");
+    BaseModel bm("efficientnet_v2_s.engine");
+}
+
 int main(int argc, char const *argv[])
 {
     // test__normalize();
@@ -304,5 +314,6 @@ int main(int argc, char const *argv[])
     // test_AnomalyMapGenerator();
     // test_padim_process();
     test_padim();
+    // test_base_module();
     return 0;
 }
