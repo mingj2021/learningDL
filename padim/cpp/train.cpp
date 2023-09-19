@@ -178,18 +178,18 @@ at::IntArrayRef test_IntArrayRef()
 
 void test_register_buffer()
 {
-    struct Buffer :Module
+    struct Buffer : Module
     {
         Buffer()
         {
-            auto mean = torch::zeros({2,2});
+            auto mean = torch::zeros({2, 2});
             register_buffer("mean", mean);
         }
         torch::Tensor forward(torch::Tensor x)
         {
             return x;
         }
-        
+
     } model;
     std::cout << model.named_buffers(false)["mean"] << std::endl;
     model.to(c10::Device("cuda:0"));
@@ -247,7 +247,7 @@ void test_AnomalyMapGenerator()
 void test_padim()
 {
     torch::NoGradGuard no_grad;
-     torch::DeviceType device_type;
+    torch::DeviceType device_type;
     if (torch::cuda::is_available())
     {
         std::cout << "CUDA available! Training on GPU." << std::endl;
@@ -278,6 +278,7 @@ void test_padim()
     }
     auto embeddings = torch::vstack(vec_embeddings);
     auto [mean, inv_covariance] = model->gaussian->fit(embeddings);
+    torch::save({mean, inv_covariance}, "tensor_vector.pt");
 
     cv::Mat frame = cv::imread("/workspace/padim/data/sampleWafer_1/test/broken/000000.png", cv::IMREAD_COLOR);
     auto preds = model->forward(frame);
@@ -285,10 +286,57 @@ void test_padim()
     std::cout << "anomaly_map size = " << anomaly_map.squeeze().sizes() << std::endl;
     anomaly_map = anomaly_map.squeeze();
     std::cout << anomaly_map.min() << " " << anomaly_map.max() << std::endl;
-    auto pred_mask = anomaly_map >= 60;//(anomaly_map.max() + anomaly_map.min()) / 3
+    auto pred_mask = anomaly_map >= 60; //(anomaly_map.max() + anomaly_map.min()) / 3
     pred_mask = pred_mask.cpu().to(torch::kU8) * 255;
     cv::Mat img_(pred_mask.size(0), pred_mask.size(1), CV_8UC1, pred_mask.data_ptr<uchar>());
     cv::imwrite("1.png", img_);
+}
+
+void test_padim_test()
+{
+    torch::NoGradGuard no_grad;
+    torch::DeviceType device_type;
+    if (torch::cuda::is_available())
+    {
+        std::cout << "CUDA available! Training on GPU." << std::endl;
+        device_type = torch::kCUDA;
+    }
+    else
+    {
+        std::cout << "Training on CPU." << std::endl;
+        device_type = torch::kCPU;
+    }
+    torch::Device device(device_type);
+
+    PadimModel model(std::tuple<int, int>(512, 512), "efficientnet_v2_s.engine");
+    model->to(device);
+
+    std::string input_dir = "/workspace/padim/data/sampleWafer_1/test/broken/";
+    fs::path images_dir = input_dir;
+
+    std::vector<torch::Tensor> tensor_vec;
+    torch::load(tensor_vec, "tensor_vector.pt");
+    auto mean = tensor_vec[0].to(device);
+    auto inv_covariance = tensor_vec[1].to(device);
+
+    for (const auto &entry : fs::directory_iterator(images_dir))
+    {
+        fs::path img = entry.path();
+        img = images_dir / img;
+        std::cout << img << std::endl;
+        cv::Mat frame = cv::imread(img, cv::IMREAD_COLOR);
+        auto preds = model->forward(frame);
+        std::cout << "preds size = " << preds.sizes() << std::endl;
+        auto anomaly_map = model->anomaly_map_generator(preds, mean, inv_covariance);
+        std::cout << "anomaly_map size = " << anomaly_map.squeeze().sizes() << std::endl;
+        anomaly_map = anomaly_map.squeeze();
+        std::cout << anomaly_map.min() << " " << anomaly_map.max() << std::endl;
+        auto pred_mask = anomaly_map >= 350; //(anomaly_map.max() + anomaly_map.min()) / 3
+        pred_mask = pred_mask.cpu().to(torch::kU8) * 255;
+        cv::Mat img_(pred_mask.size(0), pred_mask.size(1), CV_8UC1, pred_mask.data_ptr<uchar>());
+        cv::imwrite("1.png", img_);
+        // break;
+    }
 }
 
 void test_base_module()
@@ -313,6 +361,10 @@ int main(int argc, char const *argv[])
     // test_GaussianBlur2d();
     // test_AnomalyMapGenerator();
     // test_padim_process();
+    // export_engine("/workspace/padim/data/efficientnet_v2_s.onnx", "efficientnet_v2_s.engine");
+    // export_engine("/workspace/padim/data/mobilenet_v2.onnx", "mobilenet_v2.engine");
+    // export_engine("/workspace/padim/data/resnet18.onnx", "resnet18.engine");
+    // export_engine("/workspace/padim/data/vgg16.onnx", "vgg16.engine");
     test_padim();
     // test_base_module();
     return 0;

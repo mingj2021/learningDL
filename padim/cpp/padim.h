@@ -19,7 +19,7 @@ struct PadimModelImpl : Module
     {
         feature_extractor = std::shared_ptr<FeatureExtractor>(new FeatureExtractor(modelFile));
         auto [n_features_original, n_patches] = feature_extractor->_deduce_dim(input_size);
-        auto idx = torch::arange(0, n_features_original, torch::kLong);
+        auto idx = torch::arange(0, n_features_original,2, torch::kLong);
         register_buffer("idx", idx);
 
         anomaly_map_generator = AnomalyMapGenerator(input_size, 1.0);
@@ -43,8 +43,8 @@ struct PadimModelImpl : Module
         for (int i = 1; i < count; i++)
         {
             auto layer_embedding = features[i];
-            int height = layer_embedding.size(2);
-            int width = layer_embedding.size(3);
+            int height = embeddings.size(2);
+            int width = embeddings.size(3);
         
             layer_embedding = F::interpolate(layer_embedding, F::InterpolateFuncOptions().size(std::vector<int64_t>({height, width})).mode(torch::kNearest));
             embeddings = torch::cat({embeddings, layer_embedding}, 1);
@@ -64,11 +64,14 @@ struct PadimModelImpl : Module
         auto [inp_height, inp_width] = m_input_size;
         auto res = feature_extractor->prepareInput(frame, inp_width, inp_height);
         res = feature_extractor->infer();
-        auto features = feature_extractor->verifyOutput();
-        auto embeddings = generate_embedding(features);
-
+        auto preds = feature_extractor->verifyOutput();
+        std::vector<at::Tensor> features;
+        for (auto &&i : preds)
+        {
+            features.emplace_back(i.to(device));
+        }
         
-
+        auto embeddings = generate_embedding(features);
         auto max_tmp = torch::max(max_val, torch::max(embeddings));
         max_val.copy_(max_tmp);
 
