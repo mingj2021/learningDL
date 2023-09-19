@@ -97,7 +97,7 @@ class PadimModel(nn.Module):
         
         self.n_features_original, self.n_patches = self._deduce_dim(input_size)
         print('---------------------- n_features_original=', self.n_features_original)
-        self.idx = torch.arange(0,self.n_features_original,step=2,dtype=torch.long)
+        self.idx = torch.arange(0,self.n_features_original,step=4,dtype=torch.long)
         print('---------------------- shape=', self.idx.shape)
         print('---------------------- max=', self.idx.max())
         
@@ -511,7 +511,7 @@ def train():
 
 
     print('---------------',anomaly_map.min(),' ', anomaly_map.max())
-    pred_mask = anomaly_map >= 780
+    pred_mask = anomaly_map >= 350
     pred_boxes = masks_to_boxes(pred_mask)[0][0].numpy()
 
     img = np.array(im)
@@ -544,7 +544,7 @@ def predict():
         predictions = model.anomaly_map_generator(
             embedding=embedding, mean=mean, inv_covariance=inv_covariance)
         anomaly_map = predictions.detach()
-        thres = 680
+        thres = 450
         pred_mask = anomaly_map >= thres
         pred_boxes = masks_to_boxes(pred_mask)[0][0].numpy()
 

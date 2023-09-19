@@ -23,6 +23,19 @@ class MultiVariateGaussian(nn.Module):
         self.mean: Tensor
         self.inv_covariance: Tensor
 
+    def _cov2(self, observations: Tensor):
+        observations = observations.permute(2, 0 ,1)
+        ddof = 1
+        avg = torch.mean(observations, 1)[:, None]
+        fact = observations.shape[1] - ddof
+        tmp = avg.expand((-1,observations.shape[1],-1))
+        observations_m = observations.sub(tmp)
+        x_transposed = observations_m.permute(0, 2, 1)
+        covariance = torch.matmul(x_transposed, observations_m)
+        covariance = covariance / fact
+        # covariance = covariance.permute(1, 2 ,0)
+        return covariance
+
     @staticmethod
     def _cov(
         observations: Tensor,
@@ -94,6 +107,7 @@ class MultiVariateGaussian(nn.Module):
         else:
             fact = weights_sum - ddof * torch.sum(weights * weights) / weights_sum
 
+        tmp = avg.expand_as(observations)
         observations_m = observations.sub(avg.expand_as(observations))
 
         if weights is None:
@@ -122,11 +136,14 @@ class MultiVariateGaussian(nn.Module):
         self.mean = torch.mean(embedding_vectors, dim=0)
         covariance = torch.zeros(size=(channel, channel, height * width), device=device)
         identity = torch.eye(channel).to(device)
-        for i in range(height * width):
-            covariance[:, :, i] = self._cov(embedding_vectors[:, :, i], rowvar=False) + 0.01 * identity
+        tmp = self._cov2(embedding_vectors)
+        tmp = tmp + 0.01 * identity
+        # for i in range(height * width):
+        #     covariance[:, :, i] = self._cov(embedding_vectors[:, :, i], rowvar=False) + 0.01 * identity
 
         # calculate inverse covariance as we need only the inverse
-        self.inv_covariance = torch.linalg.inv(covariance.permute(2, 0, 1))
+        # self.inv_covariance = torch.linalg.inv(covariance.permute(2, 0, 1))
+        self.inv_covariance = torch.linalg.inv(tmp)
 
         return [self.mean, self.inv_covariance]
 
