@@ -33,3 +33,5 @@
 
 build
 unet/data
+padim/cpp/data
+padim/cpp/build

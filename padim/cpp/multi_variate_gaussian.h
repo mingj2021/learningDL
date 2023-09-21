@@ -16,6 +16,20 @@ struct MultiVariateGaussianImpl : Module
         register_buffer("inv_covariance", torch::eye(n_features).unsqueeze(0).repeat({n_patches, 1, 1}));
     }
 
+    torch::Tensor _cov2(torch::Tensor observations)
+    {
+        observations = observations.permute({2, 0, 1});
+        int ddof = 1;
+        auto avg = torch::mean(observations, 1).unsqueeze(1);
+        int fact = observations.size(1) - ddof;
+        auto tmp = avg.expand({-1, observations.size(1), -1});
+        auto observations_m = observations.sub(tmp);
+        auto x_transposed = observations_m.permute({0, 2, 1});
+        auto covariance = torch::matmul(x_transposed, observations_m);
+        covariance = covariance / fact;
+        return covariance;
+    }
+
     torch::Tensor _cov(torch::Tensor observations, bool rowvar, bool bias = false,
                        c10::optional<int> ddof = c10::nullopt, c10::optional<torch::Tensor> aweights = c10::nullopt)
     {
@@ -65,15 +79,18 @@ struct MultiVariateGaussianImpl : Module
         auto dict = named_buffers(false);
         auto mean = dict["mean"];
         mean.copy_(torch::mean(embedding_vectors, {0}));
-        auto covariance = torch::zeros({channel, channel, height * width}, device);
+        // auto covariance = torch::zeros({channel, channel, height * width}, device);
         auto identity = torch::eye(channel, device);
-        for (int i = 0; i < height * width; i++)
-        {
-            /* code */
-            torch::Tensor v = _cov(embedding_vectors.index({Slice(), Slice(), i}), false) + 0.01 * identity;
-            covariance.index_put_({Slice(), Slice(), i}, v);
-        }
-        covariance = torch::linalg::inv(covariance.permute({2, 0, 1}));
+        auto covariance = _cov2(embedding_vectors);
+        covariance += 0.01 * identity;
+        // for (int i = 0; i < height * width; i++)
+        // {
+        //     /* code */
+        //     torch::Tensor v = _cov(embedding_vectors.index({Slice(), Slice(), i}), false) + 0.01 * identity;
+        //     covariance.index_put_({Slice(), Slice(), i}, v);
+        // }
+        // covariance = torch::linalg::inv(covariance.permute({2, 0, 1}));
+        covariance = torch::linalg::inv(covariance);
         auto inv_covariance = dict["inv_covariance"];
         inv_covariance.copy_(covariance);
         return std::make_tuple(mean, inv_covariance);

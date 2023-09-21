@@ -286,7 +286,7 @@ void test_padim()
     std::cout << "anomaly_map size = " << anomaly_map.squeeze().sizes() << std::endl;
     anomaly_map = anomaly_map.squeeze();
     std::cout << anomaly_map.min() << " " << anomaly_map.max() << std::endl;
-    auto pred_mask = anomaly_map >= 60; //(anomaly_map.max() + anomaly_map.min()) / 3
+    auto pred_mask = anomaly_map >= 450; //(anomaly_map.max() + anomaly_map.min()) / 3
     pred_mask = pred_mask.cpu().to(torch::kU8) * 255;
     cv::Mat img_(pred_mask.size(0), pred_mask.size(1), CV_8UC1, pred_mask.data_ptr<uchar>());
     cv::imwrite("1.png", img_);
@@ -331,11 +331,11 @@ void test_padim_test()
         std::cout << "anomaly_map size = " << anomaly_map.squeeze().sizes() << std::endl;
         anomaly_map = anomaly_map.squeeze();
         std::cout << anomaly_map.min() << " " << anomaly_map.max() << std::endl;
-        auto pred_mask = anomaly_map >= 350; //(anomaly_map.max() + anomaly_map.min()) / 3
+        auto pred_mask = anomaly_map >= 450; //(anomaly_map.max() + anomaly_map.min()) / 3
         pred_mask = pred_mask.cpu().to(torch::kU8) * 255;
         cv::Mat img_(pred_mask.size(0), pred_mask.size(1), CV_8UC1, pred_mask.data_ptr<uchar>());
         cv::imwrite("1.png", img_);
-        // break;
+        break;
     }
 }
 

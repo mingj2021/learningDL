@@ -72,6 +72,7 @@ class FeatureExtractorMobilenet_v2(nn.Module):
     def __init__(self):
         super().__init__()
         model = mobilenet_v2(weights=MobileNet_V2_Weights)
+        summary(model.to('cuda'), (3, 256,256))
         self.block0 = model.features[0:2]
         self.block1 = model.features[2:4]
         self.block2 = model.features[4:7]
@@ -86,7 +87,8 @@ class FeatureExtractorMobilenet_v2(nn.Module):
 
 
 if __name__ == '__main__':
-    _all = ['resnet18', 'efficientnet_v2_s', 'vgg16', 'mobilenet_v2']
+    # _all = ['resnet18', 'efficientnet_v2_s', 'vgg16', 'mobilenet_v2']
+    _all = ['mobilenet_v2']
 
     for backbone in _all:
         if backbone == 'resnet18':
