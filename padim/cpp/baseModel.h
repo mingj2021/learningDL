@@ -1,7 +1,7 @@
 #ifndef BASEMODULE_H
 #define BASEMODULE_H
 #include "padim_utils.h"
-
+#include "commons/buffers.h"
 class BaseModel
 {
 public:

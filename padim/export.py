@@ -30,7 +30,7 @@ class FeatureExtractorResNet18(nn.Module):
         features_0 = self.block0(x)
         features_1 = self.block1(features_0)
         features_2 = self.block2(features_1)
-        return (features_0, features_1, features_2)
+        return [features_0, features_1, features_2]
 
 class FeatureExtractorEfficientnet_v2_s(nn.Module):
     def __init__(self):
@@ -50,7 +50,7 @@ class FeatureExtractorEfficientnet_v2_s(nn.Module):
         features_3 = self.block3(features_2)
         features_4 = self.block4(features_3)
         features_5 = self.block5(features_4)
-        return (features_1,features_2,features_3,features_5)
+        return [features_1,features_2,features_3,features_5]
 
 class FeatureExtractorVgg16(nn.Module):
     def __init__(self):
@@ -66,13 +66,12 @@ class FeatureExtractorVgg16(nn.Module):
         features_1 = self.block1(features_0)
         features_2 = self.block2(features_1)
         features_3 = self.block3(features_2)
-        return (features_0, features_1, features_2, features_3)
+        return [features_0, features_1, features_2, features_3]
 
 class FeatureExtractorMobilenet_v2(nn.Module):
     def __init__(self):
         super().__init__()
         model = mobilenet_v2(weights=MobileNet_V2_Weights)
-        summary(model.to('cuda'), (3, 256,256))
         self.block0 = model.features[0:2]
         self.block1 = model.features[2:4]
         self.block2 = model.features[4:7]
@@ -83,11 +82,9 @@ class FeatureExtractorMobilenet_v2(nn.Module):
         features_1 = self.block1(features_0)
         features_2 = self.block2(features_1)
         features_3 = self.block3(features_2)
-        return (features_0, features_1, features_2, features_3)
+        return [features_0, features_1, features_2, features_3]
 
-
-if __name__ == '__main__':
-    # _all = ['resnet18', 'efficientnet_v2_s', 'vgg16', 'mobilenet_v2']
+def export_onnx():
     _all = ['mobilenet_v2']
 
     for backbone in _all:
@@ -108,3 +105,8 @@ if __name__ == '__main__':
             output_names += ['output{}'.format(i)]
 
         torch.onnx.export(model, dummy_input, "{}.onnx".format(backbone), verbose=True, input_names=input_names, output_names=output_names)
+
+if __name__ == '__main__':
+    model = FeatureExtractorMobilenet_v2()
+    ts = torch.jit.trace(model, torch.randn(1, 3, 512, 512), strict=False)
+    ts.save('mobilenet_v2.torchscript')

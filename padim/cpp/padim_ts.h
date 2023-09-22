@@ -5,7 +5,7 @@
 #include <torch/torch.h>
 #include "anomaly_map.h"
 #include "multi_variate_gaussian.h"
-#include "feature_extractor_engine.h"
+#include "feature_extractor_torchscript.h"
 
 using torch::indexing::Slice;
 using torch::nn::Module;
@@ -24,7 +24,7 @@ struct PadimModelImpl : Module
         register_buffer("idx", idx);
         std::cout<< "idx.size(0) " << idx.size(0) << std::endl;
 
-        anomaly_map_generator = AnomalyMapGenerator(input_size, 1);
+        anomaly_map_generator = AnomalyMapGenerator(input_size, 2);
         register_module("anomaly_map_generator", anomaly_map_generator);
         gaussian = MultiVariateGaussian(idx.size(0), n_patches);
         register_module("gaussian", gaussian);
@@ -64,9 +64,11 @@ struct PadimModelImpl : Module
 
         auto device = max_val.device();
         auto [inp_height, inp_width] = m_input_size;
-        auto res = feature_extractor->prepareInput(frame, inp_width, inp_height);
-        res = feature_extractor->infer();
-        auto preds = feature_extractor->verifyOutput();
+        auto inputs = feature_extractor->prepareInput(frame, inp_width, inp_height);
+        // auto res = feature_extractor->prepareInput(frame, inp_width, inp_height);
+        // res = feature_extractor->infer();
+        // auto preds = feature_extractor->verifyOutput();
+        auto preds = feature_extractor->forward(inputs);
         std::vector<at::Tensor> features;
         for (auto &&i : preds)
         {

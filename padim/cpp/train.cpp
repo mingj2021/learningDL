@@ -1,11 +1,11 @@
 #include "padim_utils.h"
 #include "padim.h"
-#include "feature_extractor_engine.h"
 #include "multi_variate_gaussian.h"
 #include "anomaly_map.h"
 #include <limits>
 #include <filesystem>
 #include "baseModel.h"
+#include "torch/script.h"
 
 namespace fs = std::filesystem;
 
@@ -98,23 +98,23 @@ void test_export_engine(std::string f = "/workspace/padim/data/FeatureExtractor.
     export_engine(f);
 }
 
-void test_FeatureExtractor()
-{
-    const std::string modelFile = "FeatureExtractor.engine";
-    cv::Mat frame = cv::imread("/workspace/padim/data/000150.png", cv::IMREAD_COLOR);
+// void test_FeatureExtractor()
+// {
+//     const std::string modelFile = "FeatureExtractor.engine";
+//     cv::Mat frame = cv::imread("/workspace/padim/data/000150.png", cv::IMREAD_COLOR);
 
-    std::shared_ptr<FeatureExtractor> eng_0(new FeatureExtractor(modelFile));
-    auto [n_features_original, n_patches] = eng_0->_deduce_dim(std::tuple<int, int>(512, 512));
-    std::cout << "n_features_original = " << n_features_original << " n_patches = " << n_patches << std::endl;
+//     std::shared_ptr<FeatureExtractor> eng_0(new FeatureExtractor(modelFile));
+//     auto [n_features_original, n_patches] = eng_0->_deduce_dim(std::tuple<int, int>(512, 512));
+//     std::cout << "n_features_original = " << n_features_original << " n_patches = " << n_patches << std::endl;
 
-    auto res = eng_0->prepareInput(frame, 512, 512);
-    std::cout << "------------------prepareInput: " << res << std::endl;
-    res = eng_0->infer();
-    std::cout << "------------------infer: " << res << std::endl;
-    auto preds = eng_0->verifyOutput();
-    std::cout << "------------------preds size: " << preds.size() << std::endl;
-    std::cout << "done !" << std::endl;
-}
+//     auto res = eng_0->prepareInput(frame, 512, 512);
+//     std::cout << "------------------prepareInput: " << res << std::endl;
+//     res = eng_0->infer();
+//     std::cout << "------------------infer: " << res << std::endl;
+//     auto preds = eng_0->verifyOutput();
+//     std::cout << "------------------preds size: " << preds.size() << std::endl;
+//     std::cout << "done !" << std::endl;
+// }
 
 void test_MultiVariateGaussian_register_buffer()
 {
@@ -260,7 +260,7 @@ void test_padim()
     }
     torch::Device device(device_type);
 
-    PadimModel model(std::tuple<int, int>(512, 512), "efficientnet_v2_s.engine");
+    PadimModel model(std::tuple<int, int>(512, 512), "mobilenet_v2.engine");
     model->to(device);
 
     std::string input_dir = "/workspace/padim/data/sampleWafer_1/train/good";
@@ -277,19 +277,41 @@ void test_padim()
         vec_embeddings.emplace_back(preds);
     }
     auto embeddings = torch::vstack(vec_embeddings);
+
+    // torch::jit::script::Module tensors = torch::jit::load("/workspace/padim/data/embedding.pth");
+    // torch::Tensor prior = tensors.attr("embeddings").toTensor();
+    // prior = prior.to(device);
+
     auto [mean, inv_covariance] = model->gaussian->fit(embeddings);
     torch::save({mean, inv_covariance}, "tensor_vector.pt");
 
     cv::Mat frame = cv::imread("/workspace/padim/data/sampleWafer_1/test/broken/000000.png", cv::IMREAD_COLOR);
+    cv::Mat im_sz;
+    cv::resize(frame, im_sz, cv::Size(512, 512));
     auto preds = model->forward(frame);
     auto anomaly_map = model->anomaly_map_generator(preds, mean, inv_covariance);
     std::cout << "anomaly_map size = " << anomaly_map.squeeze().sizes() << std::endl;
     anomaly_map = anomaly_map.squeeze();
     std::cout << anomaly_map.min() << " " << anomaly_map.max() << std::endl;
-    auto pred_mask = anomaly_map >= 450; //(anomaly_map.max() + anomaly_map.min()) / 3
-    pred_mask = pred_mask.cpu().to(torch::kU8) * 255;
+    auto pred_mask = anomaly_map >= 50; //(anomaly_map.max() + anomaly_map.min()) / 3
+    pred_mask = pred_mask.cpu().to(torch::kU8);
     cv::Mat img_(pred_mask.size(0), pred_mask.size(1), CV_8UC1, pred_mask.data_ptr<uchar>());
-    cv::imwrite("1.png", img_);
+
+    cv::Mat labels, stats, centroids;
+    int connectivity = 8; // or 4
+    int label_count = cv::connectedComponentsWithStats(img_, labels, stats, centroids, connectivity);
+    for (int i = 1; i < label_count; i++)
+    {
+        int x = stats.at<int>(i, cv::CC_STAT_LEFT);
+        int y = stats.at<int>(i, cv::CC_STAT_TOP);
+        int w = stats.at<int>(i, cv::CC_STAT_WIDTH);
+        int h = stats.at<int>(i, cv::CC_STAT_HEIGHT);
+        int area = stats.at<int>(i, cv::CC_STAT_AREA);
+        double cx = centroids.at<double>(i, 0);
+        double cy = centroids.at<double>(i, 1);
+        cv::rectangle(im_sz, cv::Point(x, y), cv::Point(x + w, y + h), cv::Scalar(0, 0, 255));
+    }
+    cv::imwrite("1.png", im_sz);
 }
 
 void test_padim_test()
@@ -308,7 +330,7 @@ void test_padim_test()
     }
     torch::Device device(device_type);
 
-    PadimModel model(std::tuple<int, int>(512, 512), "efficientnet_v2_s.engine");
+    PadimModel model(std::tuple<int, int>(512, 512), "mobilenet_v2.engine");
     model->to(device);
 
     std::string input_dir = "/workspace/padim/data/sampleWafer_1/test/broken/";
@@ -319,6 +341,14 @@ void test_padim_test()
     auto mean = tensor_vec[0].to(device);
     auto inv_covariance = tensor_vec[1].to(device);
 
+    // torch::jit::script::Module tensors = torch::jit::load("/workspace/padim/data/test.pth");
+    // torch::Tensor prior = tensors.attr("embedding").toTensor();
+    // prior = prior.to(device);
+    // torch::Tensor mean = tensors.attr("mean").toTensor();
+    // mean = mean.to(device);
+    // torch::Tensor inv_covariance = tensors.attr("inv_covariance").toTensor();
+    // inv_covariance = inv_covariance.to(device);
+    int num = 0;
     for (const auto &entry : fs::directory_iterator(images_dir))
     {
         fs::path img = entry.path();
@@ -331,11 +361,28 @@ void test_padim_test()
         std::cout << "anomaly_map size = " << anomaly_map.squeeze().sizes() << std::endl;
         anomaly_map = anomaly_map.squeeze();
         std::cout << anomaly_map.min() << " " << anomaly_map.max() << std::endl;
-        auto pred_mask = anomaly_map >= 450; //(anomaly_map.max() + anomaly_map.min()) / 3
+        auto pred_mask = anomaly_map >= 25; //(anomaly_map.max() + anomaly_map.min()) / 3
         pred_mask = pred_mask.cpu().to(torch::kU8) * 255;
         cv::Mat img_(pred_mask.size(0), pred_mask.size(1), CV_8UC1, pred_mask.data_ptr<uchar>());
-        cv::imwrite("1.png", img_);
-        break;
+        // cv::imwrite("1.png", img_);
+        cv::Mat im_sz;
+        cv::resize(frame, im_sz, cv::Size(512, 512));
+
+        cv::Mat labels, stats, centroids;
+        int connectivity = 8; // or 4
+        int label_count = cv::connectedComponentsWithStats(img_, labels, stats, centroids, connectivity);
+        for (int i = 1; i < label_count; i++)
+        {
+            int x = stats.at<int>(i, cv::CC_STAT_LEFT);
+            int y = stats.at<int>(i, cv::CC_STAT_TOP);
+            int w = stats.at<int>(i, cv::CC_STAT_WIDTH);
+            int h = stats.at<int>(i, cv::CC_STAT_HEIGHT);
+            int area = stats.at<int>(i, cv::CC_STAT_AREA);
+            double cx = centroids.at<double>(i, 0);
+            double cy = centroids.at<double>(i, 1);
+            cv::rectangle(im_sz, cv::Point(x, y), cv::Point(x + w, y + h), cv::Scalar(0, 0, 255));
+        }
+        cv::imwrite( "outputs/"+ std::to_string(num++)+ ".png", im_sz);
     }
 }
 
@@ -346,6 +393,33 @@ void test_base_module()
     // export_engine("/workspace/padim/data/resnet18.onnx", "resnet18.engine");
     // export_engine("/workspace/padim/data/vgg16.onnx", "vgg16.engine");
     BaseModel bm("efficientnet_v2_s.engine");
+}
+
+void test_torchscript()
+{
+    torch::DeviceType device_type;
+    if (torch::cuda::is_available())
+    {
+        std::cout << "CUDA available! Training on GPU." << std::endl;
+        device_type = torch::kCUDA;
+    }
+    else
+    {
+        std::cout << "Training on CPU." << std::endl;
+        device_type = torch::kCPU;
+    }
+    
+    torch::Device device(device_type);
+
+    torch::jit::script::Module model = torch::jit::load("/workspace/padim/data/mobilenet_v2.torchscript");
+    model.to(device);
+    model.eval();
+    // auto pred = model.forward({torch::randn({1, 3, 512, 512}).to(device)}).toTuple()->elements();
+    c10::List<at::Tensor> pred = model.forward({torch::randn({1, 3, 512, 512}).to(device)}).toTensorList();
+    std::cout << pred.get(0).sizes() << std::endl;
+    std::cout << pred.get(1).sizes() << std::endl;
+    std::cout << pred.get(2).sizes() << std::endl;
+    std::cout << pred.get(3).sizes() << std::endl;
 }
 
 int main(int argc, char const *argv[])
@@ -365,7 +439,9 @@ int main(int argc, char const *argv[])
     // export_engine("/workspace/padim/data/mobilenet_v2.onnx", "mobilenet_v2.engine");
     // export_engine("/workspace/padim/data/resnet18.onnx", "resnet18.engine");
     // export_engine("/workspace/padim/data/vgg16.onnx", "vgg16.engine");
-    test_padim();
+    // test_torchscript();
     // test_base_module();
+    // test_padim();
+    test_padim_test();
     return 0;
 }
