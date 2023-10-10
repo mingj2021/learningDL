@@ -35,3 +35,5 @@ build
 unet/data
 padim/cpp/data
 padim/cpp/build
+yolov5/datasets/coco128
+yolov5/datasets/wafer

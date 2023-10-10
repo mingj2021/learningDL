@@ -256,7 +256,7 @@ Data readInfo(std::string fs = "C:/Users/77274/projects/datasets/coco128/train.t
         {
             s_label = path.replace(found, str1.size(), str2);
         }
-        str1 = ".jpg";
+        str1 = ".png";
         str2 = ".txt";
         found = path.find(str1);
         if (found != std::string::npos)

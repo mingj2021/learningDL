@@ -20,11 +20,11 @@ struct PadimModelImpl : Module
         feature_extractor = std::shared_ptr<FeatureExtractor>(new FeatureExtractor(modelFile));
         auto [n_features_original, n_patches] = feature_extractor->_deduce_dim(input_size);
         std::cout<< "n_features_original" << n_features_original << std::endl;
-        auto idx = torch::arange(0, n_features_original,3, torch::kLong);
+        auto idx = torch::arange(0, n_features_original, 1, torch::kLong);
         register_buffer("idx", idx);
         std::cout<< "idx.size(0) " << idx.size(0) << std::endl;
 
-        anomaly_map_generator = AnomalyMapGenerator(input_size, 1);
+        anomaly_map_generator = AnomalyMapGenerator(input_size, 0.5);
         register_module("anomaly_map_generator", anomaly_map_generator);
         gaussian = MultiVariateGaussian(idx.size(0), n_patches);
         register_module("gaussian", gaussian);

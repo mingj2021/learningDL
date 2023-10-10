@@ -85,6 +85,7 @@ std::vector<at::Tensor> FeatureExtractor::verifyOutput()
         preds = at::zeros({dim0.d[0], dim0.d[1], dim0.d[2], dim0.d[3]}, at::kFloat);
         mInOut[name.c_str()]->device2host((void *)(preds.data_ptr<float>()), true, stream);
         outputs.emplace_back(preds);
+        break;
     }
     
     return outputs;

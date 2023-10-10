@@ -167,7 +167,7 @@ int main(int argc, char const *argv[])
     ModuleHolder<DetectionModel> model("/workspace/learningDL/yolov5/data/yolov5s.yaml", 3);
     model->hyp = hyp;
     // model->load_weights("C:/Users/77274/projects/MJ/libtorch-yolov5/data/yolov5s.weights");
-    torch::load(model, "yolov5.pt");
+    torch::load(model, "yolov5s.pt");
     std::cout << model << std::endl;
 
     torch::DeviceType device_type;
@@ -184,7 +184,7 @@ int main(int argc, char const *argv[])
     torch::Device device(device_type);
     model->to(device);
 
-    auto data = readInfo("/workspace/learningDL/yolov5/datasets/coco128/train.txt");
+    auto data = readInfo("/workspace/learningDL/yolov5/datasets/wafer/train.txt");
     auto train_set = LoadImagesAndLabels(data, 640, false).map(StackCustom<>());
     auto train_loader =
         torch::data::make_data_loader<torch::data::samplers::SequentialSampler>(

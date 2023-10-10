@@ -104,12 +104,12 @@ void val(ModuleHolder<DetectionModel> &network, DataLoader &loader)
                 }
             }
             auto predn = pred.clone();
-            float h0 = batch.shape[si][0].item<float>();
-            float w0 = batch.shape[si][1].item<float>();
-            float rw = batch.shape[si][2].item<float>();
-            float rh = batch.shape[si][3].item<float>();
-            float pad_w = batch.shape[si][4].item<float>();
-            float pad_h = batch.shape[si][5].item<float>();
+            float h0 = batch.shape[si][0].cpu().item().toFloat();
+            float w0 = batch.shape[si][1].cpu().item().toFloat();
+            float rw = batch.shape[si][2].cpu().item().toFloat();
+            float rh = batch.shape[si][3].cpu().item().toFloat();
+            float pad_w = batch.shape[si][4].cpu().item().toFloat();
+            float pad_h = batch.shape[si][5].cpu().item().toFloat();
             scale_boxes(predn, pad_w, pad_h, rw, cv::Size(w0, h0));
             bool plot = false;
             if (plot)
@@ -171,7 +171,7 @@ void val(ModuleHolder<DetectionModel> &network, DataLoader &loader)
     // std::cout << "-------------------------ap_per_class" << std::endl;
     if (tp.any().item<bool>())
     {
-        auto [tp, fp, p, r, f1, ap, ap_class] = ap_per_class(tp, conf, pred_cls, target_cls);
+        auto [tp1, fp, p, r, f1, ap, ap_class] = ap_per_class(tp, conf, pred_cls, target_cls);
         std::cout << "-------------------------9" << std::endl;
         auto ap50 = ap.index({Slice(), 0});
         std::cout << ap50 << std::endl;
@@ -197,7 +197,7 @@ void val(ModuleHolder<DetectionModel> &network, DataLoader &loader)
 
 int main(int argc, char const *argv[])
 {
-    YAML::Node config = YAML::LoadFile("C:/Users/77274/projects/MJ/libtorch-yolov5/data/custom.yaml");
+    YAML::Node config = YAML::LoadFile("/workspace/learningDL/yolov5/data/custom.yaml");
     std::map<std::string, float> hyp;
     hyp = config.as<std::map<std::string, float>>();
 
@@ -221,10 +221,10 @@ int main(int argc, char const *argv[])
     hyp["obj"] *= pow((imgsz / 640), 2) * 3 / nl;
     hyp["label_smoothing"] = label_smoothing;
 
-    ModuleHolder<DetectionModel> model("C:/Users/77274/projects/MJ/libtorch-yolov5/data/yolov5s.yaml", 3);
+    ModuleHolder<DetectionModel> model("/workspace/learningDL/yolov5/data/yolov5s.yaml", 3);
     model->hyp = hyp;
     // model->load_weights("C:/Users/77274/projects/MJ/libtorch-yolov5/data/yolov5s.weights");
-    torch::load(model, "yolov5.pt");
+    torch::load(model, "yolov5s.pt");
     std::cout << model << std::endl;
 
     torch::DeviceType device_type;
@@ -241,7 +241,7 @@ int main(int argc, char const *argv[])
     torch::Device device(device_type);
     model->to(device);
 
-    auto data = readInfo();
+    auto data = readInfo("/workspace/learningDL/yolov5/datasets/wafer/train.txt");
     auto train_set = LoadImagesAndLabels(data, 640, false).map(StackCustom<>());
     auto train_loader =
         torch::data::make_data_loader<torch::data::samplers::SequentialSampler>(

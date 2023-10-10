@@ -9,6 +9,8 @@ mobilenet_v2, MobileNet_V2_Weights,swin_v2_t,Swin_V2_T_Weights,swin_v2_s,Swin_V2
 vgg16, VGG16_Weights, efficientnet_v2_s, EfficientNet_V2_S_Weights, efficientnet_v2_m, EfficientNet_V2_M_Weights, efficientnet_v2_l, EfficientNet_V2_L_Weights
 
 from torchsummary import summary
+import onnx
+import onnxsim
 
 class FeatureExtractorResNet18(nn.Module):
     def __init__(self):
@@ -85,7 +87,7 @@ class FeatureExtractorMobilenet_v2(nn.Module):
         return [features_0, features_1, features_2, features_3]
 
 def export_onnx():
-    _all = ['mobilenet_v2']
+    _all = ['resnet18', 'efficientnet_v2_s', 'vgg16', 'mobilenet_v2']
 
     for backbone in _all:
         if backbone == 'resnet18':
@@ -97,7 +99,7 @@ def export_onnx():
         elif backbone == 'mobilenet_v2':
             model = FeatureExtractorMobilenet_v2()
         
-        dummy_input = torch.randn(1, 3, 512, 512)
+        dummy_input = torch.randn(1, 3, 256, 256)
         input_names = [ "images" ]
         output_names = []
         x = model(dummy_input)
@@ -106,7 +108,29 @@ def export_onnx():
 
         torch.onnx.export(model, dummy_input, "{}.onnx".format(backbone), verbose=True, input_names=input_names, output_names=output_names)
 
-if __name__ == '__main__':
+def export_torchscript():
     model = FeatureExtractorMobilenet_v2()
     ts = torch.jit.trace(model, torch.randn(1, 3, 512, 512), strict=False)
     ts.save('mobilenet_v2.torchscript')
+
+if __name__ == '__main__':
+    export_onnx()
+    # backbone = 'mobilenet_v2'
+    # # device = 'cuda'
+    # model = FeatureExtractorMobilenet_v2()
+    # im = torch.randn(1, 3, 512, 512)
+    # # im = im.half()
+    # # model = model.half()
+
+    # input_names = [ "images" ]
+    # output_names = []
+    # x = model(im)
+    # for i in range(len(x)):
+    #     output_names += ['output{}'.format(i)]
+
+    # f = "{}.onnx".format(backbone)
+    # torch.onnx.export(model, im, f, verbose=True, input_names=input_names, output_names=output_names)
+    # model_onnx = onnx.load(f)  # load onnx model
+    # model_onnx, check = onnxsim.simplify(model_onnx)
+    # onnx.save(model_onnx, f)
+

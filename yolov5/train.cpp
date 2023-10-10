@@ -116,7 +116,7 @@ int main(int argc, char const *argv[])
 
     optimizer.add_param_group(torch::optim::OptimizerParamGroup(g1));
 
-    auto data = readInfo("/workspace/learningDL/yolov5/datasets/coco128/train.txt");
+    auto data = readInfo("/workspace/learningDL/yolov5/datasets/wafer/train.txt");
     auto train_set = LoadImagesAndLabels(data).map(StackCustom<>());
     auto train_loader =
         torch::data::make_data_loader<torch::data::samplers::SequentialSampler>(
@@ -127,9 +127,10 @@ int main(int argc, char const *argv[])
         std::cout << "epoch i = " << i << std::endl;
         train(model, *train_loader, optimizer);
         if (i % 5 == 0)
-            torch::save(model, "yolov5_" + std::to_string(i) + ".pt");
+            torch::save(model, "yolov5s.pt");
+            // torch::save(model, "yolov5_" + std::to_string(i) + ".pt");
         // test(model, data);
     }
-    torch::save(model, "yolov5.pt");
+    torch::save(model, "yolov5s.pt");
     return 0;
 }

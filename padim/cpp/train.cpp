@@ -244,7 +244,7 @@ void test_AnomalyMapGenerator()
     std::cout << "done !" << std::endl;
 }
 
-void test_padim()
+void test_padim(std::string category, std::tuple<int, int> input_sz, std::string backbone)
 {
     torch::NoGradGuard no_grad;
     torch::DeviceType device_type;
@@ -258,12 +258,12 @@ void test_padim()
         std::cout << "Training on CPU." << std::endl;
         device_type = torch::kCPU;
     }
-    torch::Device device(device_type);
+    torch::Device device(torch::kCPU);
 
-    PadimModel model(std::tuple<int, int>(512, 512), "mobilenet_v2.engine");
+    PadimModel model(input_sz, backbone + ".engine");
     model->to(device);
 
-    std::string input_dir = "/workspace/padim/data/sampleWafer_1/train/good";
+    std::string input_dir = "/workspace/padim/data/" + category + "/train/good";
     fs::path images_dir = input_dir;
     std::vector<torch::Tensor> vec_embeddings;
     for (const auto &entry : fs::directory_iterator(images_dir))
@@ -283,17 +283,18 @@ void test_padim()
     // prior = prior.to(device);
 
     auto [mean, inv_covariance] = model->gaussian->fit(embeddings);
-    torch::save({mean, inv_covariance}, "tensor_vector.pt");
+    torch::save({mean, inv_covariance}, backbone + ".pt");
 
     cv::Mat frame = cv::imread("/workspace/padim/data/sampleWafer_1/test/broken/000000.png", cv::IMREAD_COLOR);
     cv::Mat im_sz;
-    cv::resize(frame, im_sz, cv::Size(512, 512));
+    auto [h,w] = input_sz;
+    cv::resize(frame, im_sz, cv::Size(w, h));
     auto preds = model->forward(frame);
     auto anomaly_map = model->anomaly_map_generator(preds, mean, inv_covariance);
     std::cout << "anomaly_map size = " << anomaly_map.squeeze().sizes() << std::endl;
     anomaly_map = anomaly_map.squeeze();
     std::cout << anomaly_map.min() << " " << anomaly_map.max() << std::endl;
-    auto pred_mask = anomaly_map >= 50; //(anomaly_map.max() + anomaly_map.min()) / 3
+    auto pred_mask = anomaly_map >= 150; //(anomaly_map.max() + anomaly_map.min()) / 3
     pred_mask = pred_mask.cpu().to(torch::kU8);
     cv::Mat img_(pred_mask.size(0), pred_mask.size(1), CV_8UC1, pred_mask.data_ptr<uchar>());
 
@@ -314,7 +315,7 @@ void test_padim()
     cv::imwrite("1.png", im_sz);
 }
 
-void test_padim_test()
+void test_padim_test(std::string category, std::tuple<int, int> input_sz, std::string backbone)
 {
     torch::NoGradGuard no_grad;
     torch::DeviceType device_type;
@@ -330,14 +331,14 @@ void test_padim_test()
     }
     torch::Device device(device_type);
 
-    PadimModel model(std::tuple<int, int>(512, 512), "mobilenet_v2.engine");
+    PadimModel model(input_sz, backbone + ".engine");
     model->to(device);
 
-    std::string input_dir = "/workspace/padim/data/sampleWafer_1/test/broken/";
+    std::string input_dir = "/workspace/padim/data/" + category + "/test/broken/";
     fs::path images_dir = input_dir;
 
     std::vector<torch::Tensor> tensor_vec;
-    torch::load(tensor_vec, "tensor_vector.pt");
+    torch::load(tensor_vec, backbone + ".pt");
     auto mean = tensor_vec[0].to(device);
     auto inv_covariance = tensor_vec[1].to(device);
 
@@ -361,12 +362,13 @@ void test_padim_test()
         std::cout << "anomaly_map size = " << anomaly_map.squeeze().sizes() << std::endl;
         anomaly_map = anomaly_map.squeeze();
         std::cout << anomaly_map.min() << " " << anomaly_map.max() << std::endl;
-        auto pred_mask = anomaly_map >= 25; //(anomaly_map.max() + anomaly_map.min()) / 3
+        auto pred_mask = anomaly_map >= 55; //(anomaly_map.max() + anomaly_map.min()) / 3
         pred_mask = pred_mask.cpu().to(torch::kU8) * 255;
         cv::Mat img_(pred_mask.size(0), pred_mask.size(1), CV_8UC1, pred_mask.data_ptr<uchar>());
         // cv::imwrite("1.png", img_);
         cv::Mat im_sz;
-        cv::resize(frame, im_sz, cv::Size(512, 512));
+        auto [h,w] = input_sz;
+        cv::resize(frame, im_sz, cv::Size(w, h));
 
         cv::Mat labels, stats, centroids;
         int connectivity = 8; // or 4
@@ -382,7 +384,9 @@ void test_padim_test()
             double cy = centroids.at<double>(i, 1);
             cv::rectangle(im_sz, cv::Point(x, y), cv::Point(x + w, y + h), cv::Scalar(0, 0, 255));
         }
-        cv::imwrite( "outputs/"+ std::to_string(num++)+ ".png", im_sz);
+        cv::imwrite( "outputs/"+ std::to_string(num)+ ".png", im_sz);
+        cv::imwrite( "outputs/"+ std::to_string(num)+ "_mask.png", img_);
+        num++;
     }
 }
 
@@ -441,7 +445,8 @@ int main(int argc, char const *argv[])
     // export_engine("/workspace/padim/data/vgg16.onnx", "vgg16.engine");
     // test_torchscript();
     // test_base_module();
-    // test_padim();
-    test_padim_test();
+    // test_padim("sampleWafer_1", std::tuple<int, int>(256, 256), "efficientnet_v2_s");
+    test_padim_test("sampleWafer_1", std::tuple<int, int>(256, 256), "efficientnet_v2_s");
+    // test_padim_test();
     return 0;
 }
