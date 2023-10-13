@@ -57,7 +57,10 @@ void test(ModuleHolder<UNet> &network, DataLoader &loader, std::map<std::string,
         // torch::Tensor unique_colors;
         // torch::load(unique_colors, "colors.pth");
         std::string output = "t_" + std::to_string(i++) + ".png";
-        mask2image(targets.squeeze(0), name2rgb, output);
+        // mask2image(mask, name2rgb, output);
+        torch::Tensor mask_ = mask.clamp(0, 255).to(torch::kU8).to(torch::kCPU)*255;
+        cv::Mat img_(mask_.size(0), mask_.size(1), CV_8UC1, mask_.data_ptr<uchar>());
+        cv::imwrite(output, img_);
         std::cout << output << std::endl;
         // break;
     }
@@ -140,14 +143,18 @@ int main(int argc, char const *argv[])
     }
     torch::Device device(device_type);
 
-    ModuleHolder<UNet> model(3, 15, false);
-    torch::load(model, "2023_08_23_07_01_18_unet.pth");
+    ModuleHolder<UNet> model(3, 2, false);
+    torch::load(model, "2023_10_13_02_29_13_unet.pth");
     model->to(device);
     model->to(torch::kHalf);
-    auto data = readInfo("/workspace/learningDL/unet/data/clothes/images",
-                            "/workspace/learningDL/unet/data/clothes/labels/pixel_level_labels_colored");
-    auto name2rgb = get_unique_colors();
-    auto test_set = SegmentationDataSets(data, name2rgb).map(StackCustom<>());
+    // auto data = readInfo("/workspace/learningDL/unet/data/clothes/images",
+    //                         "/workspace/learningDL/unet/data/clothes/labels/pixel_level_labels_colored");
+    // auto name2rgb = get_unique_colors("/workspace/learningDL/unet/data/clothes/class_dict.csv");
+    // auto test_set = SegmentationDataSets(data, name2rgb).map(StackCustom<>());
+    auto data = readInfo("/workspace/learningDL/unet/data/wafer/1/images",
+                        "/workspace/learningDL/unet/data/wafer/1/labels");
+    auto name2rgb = get_unique_colors("/workspace/learningDL/unet/data/clothes/class_dict.csv");
+    auto test_set = LoadImagesAndLabels(data).map(StackCustom<>());
     auto test_loader =
         torch::data::make_data_loader<torch::data::samplers::SequentialSampler>(
             std::move(test_set), 1);

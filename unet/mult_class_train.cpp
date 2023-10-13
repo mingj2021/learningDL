@@ -33,7 +33,7 @@ void train(ModuleHolder<UNet> &network, DataLoader &loader, torch::optim::Optimi
     {
         auto inputs = batch.data.to(device).to(torch::kHalf);//
         // std::cout << "inputs= " << inputs.sizes() << std::endl;
-        auto targets = batch.target.to(device).to(torch::kLong); //
+        auto targets = batch.target.to(device); //
         // std::cout << "targets= " << targets.sizes() << std::endl;
         auto preds = network->forward(inputs).to(torch::kFloat);
         // std::cout << "preds= " << preds.sizes() << std::endl;
@@ -48,10 +48,10 @@ void train(ModuleHolder<UNet> &network, DataLoader &loader, torch::optim::Optimi
         else
         {
             // auto input = torch::log_softmax(preds,1);
-            loss = criterion.forward(preds, targets);
+            loss = criterion.forward(preds, targets.to(torch::kLong));
             // st::cout << "loss " << loss << std::endl;
             // loss += DiceLoss(preds, targets,network->m_n_classes);
-            loss += dice_loss(F::softmax(preds,F::SoftmaxFuncOptions(1)).to(torch::kFloat),F::one_hot(targets,network->m_n_classes).permute({0,3,1,2}).to(torch::kFloat),true);
+            loss += dice_loss(F::softmax(preds,F::SoftmaxFuncOptions(1)).to(torch::kFloat),F::one_hot(targets.to(torch::kLong),network->m_n_classes).permute({0,3,1,2}).to(torch::kFloat),true);
         }
         
         optimizer.zero_grad();
@@ -82,20 +82,25 @@ int main(int argc, char const *argv[])
     }
     torch::Device device(device_type);
 
-    ModuleHolder<UNet> model(3, 59, false);
+    ModuleHolder<UNet> model(3, 2, false);
     model->to(device);
     model->to(torch::kHalf);
     std::cout << model << std::endl;
     torch::optim::SGD optimizer(
         model->parameters(), torch::optim::SGDOptions(1e-3).momentum(0.937).nesterov(true).weight_decay(1e-4));//
-    auto data = readInfo("/workspace/learningDL/unet/data/clothes/images",
-                            "/workspace/learningDL/unet/data/clothes/labels/pixel_level_labels_colored");
-    auto name2rgb = get_unique_colors();
-    auto train_set = SegmentationDataSets(data, name2rgb).map(StackCustom<>());
+    // auto data = readInfo("/workspace/learningDL/unet/data/clothes/images",
+    //                         "/workspace/learningDL/unet/data/clothes/labels/pixel_level_labels_colored");
+    // auto name2rgb = get_unique_colors("/workspace/learningDL/unet/data/clothes/class_dict.csv");
+    // auto train_set = SegmentationDataSets(data, name2rgb).map(StackCustom<>());
+
+    auto data = readInfo("/workspace/learningDL/unet/data/wafer/1/images",
+                        "/workspace/learningDL/unet/data/wafer/1/labels");
+    auto train_set = LoadImagesAndLabels(data).map(StackCustom<>());
+
     auto train_loader =
         torch::data::make_data_loader<torch::data::samplers::SequentialSampler>(
-            std::move(train_set), 1);
-    for (size_t i = 0; i < 600; i++)
+            std::move(train_set), 4);
+    for (size_t i = 0; i < 100; i++)
     {
         std::cout << "epoch = "  << i << std::endl;
         train(model, *train_loader, optimizer);

@@ -362,7 +362,7 @@ void test_padim_test(std::string category, std::tuple<int, int> input_sz, std::s
         std::cout << "anomaly_map size = " << anomaly_map.squeeze().sizes() << std::endl;
         anomaly_map = anomaly_map.squeeze();
         std::cout << anomaly_map.min() << " " << anomaly_map.max() << std::endl;
-        auto pred_mask = anomaly_map >= 55; //(anomaly_map.max() + anomaly_map.min()) / 3
+        auto pred_mask = anomaly_map >= 35; //(anomaly_map.max() + anomaly_map.min()) / 3
         pred_mask = pred_mask.cpu().to(torch::kU8) * 255;
         cv::Mat img_(pred_mask.size(0), pred_mask.size(1), CV_8UC1, pred_mask.data_ptr<uchar>());
         // cv::imwrite("1.png", img_);
@@ -445,8 +445,8 @@ int main(int argc, char const *argv[])
     // export_engine("/workspace/padim/data/vgg16.onnx", "vgg16.engine");
     // test_torchscript();
     // test_base_module();
-    // test_padim("sampleWafer_1", std::tuple<int, int>(256, 256), "efficientnet_v2_s");
-    test_padim_test("sampleWafer_1", std::tuple<int, int>(256, 256), "efficientnet_v2_s");
+    // test_padim("wafer", std::tuple<int, int>(256, 256), "mobilenet_v2");
+    test_padim_test("wafer", std::tuple<int, int>(256, 256), "mobilenet_v2");
     // test_padim_test();
     return 0;
 }

@@ -41,10 +41,10 @@ struct Conv : Module
   Conv2d conv{nullptr};
   BatchNorm2d bn{nullptr};
   SiLU default_act{nullptr};
-  int i;// attach index
-  int f;// 'from' index
+  int i;         // attach index
+  int f;         // 'from' index
   std::string t; // type, default class name
-  int np; //number params
+  int np;        // number params
 };
 
 struct Bottleneck : Module
@@ -103,10 +103,10 @@ struct C3 : Module
 
   ModuleHolder<Conv> cv1{nullptr}, cv2{nullptr}, cv3{nullptr};
   Sequential m;
-  int i;// attach index
-  int f;// 'from' index
+  int i;         // attach index
+  int f;         // 'from' index
   std::string t; // type, default class name
-  int np; //number params
+  int np;        // number params
 };
 
 struct SPPF : Module
@@ -125,7 +125,7 @@ struct SPPF : Module
 
   torch::Tensor forward(torch::Tensor x)
   {
-    auto x_ =  cv1(x);
+    auto x_ = cv1(x);
     auto y1 = m(x_);
     auto y2 = m(y1);
     return cv2(torch::cat({x_, y1, y2, m(y2)}, 1));
@@ -133,10 +133,10 @@ struct SPPF : Module
 
   ModuleHolder<Conv> cv1{nullptr}, cv2{nullptr};
   MaxPool2d m{nullptr};
-  int i;// attach index
-  int f;// 'from' index
+  int i;         // attach index
+  int f;         // 'from' index
   std::string t; // type, default class name
-  int np; //number params
+  int np;        // number params
 };
 
 struct Concat : Module
@@ -157,16 +157,41 @@ struct Concat : Module
     // {
     //   std::cout << x[i].sizes() << std::endl;
     // }
-    
+
     // auto x_ = torch::cat(x, d);
     return torch::cat(x, d);
   }
 
   int d;
-  int i;// attach index
-  std::vector<int> f;// 'from' index
-  std::string t; // type, default class name
-  int np; //number params
+  int i;              // attach index
+  std::vector<int> f; // 'from' index
+  std::string t;      // type, default class name
+  int np;             // number params
 };
 
+struct Proto : Module
+{
+  Proto(int c1, int c_ = 256, int c2 = 32)
+  {
+    cv1 = ModuleHolder<Conv>(c1, c_, 3);
+    upsample = Upsample(UpsampleOptions()
+                            .scale_factor(std::vector<double>({double(2), double(2)}))
+                            .mode(torch::kNearest));
+    cv2 = ModuleHolder<Conv>(c_, c_, 3);
+    cv3 = ModuleHolder<Conv>(c_, c2);
+
+    register_module("cv1", cv1);
+    register_module("upsample", upsample);
+    register_module("cv2", cv2);
+    register_module("cv3", cv3);
+  }
+
+  torch::Tensor forward(torch::Tensor x)
+  {
+    return cv3(cv2(upsample(cv1(x))));
+  }
+
+  ModuleHolder<Conv> cv1{nullptr}, cv2{nullptr}, cv3{nullptr};
+  Upsample upsample{nullptr};
+};
 #endif

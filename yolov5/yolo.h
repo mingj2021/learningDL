@@ -116,6 +116,26 @@ struct Detect : Module
     int np;             // number params
 };
 
+struct Segment : Detect
+{
+    Segment(int nc_, std::vector<std::vector<int>> anchors_, std::vector<int> ch_, bool inplace_, int nm_=32, int npr_=256):Detect(nc_, anchors_, ch_, inplace_)
+    {
+        nm = nm_;  // number of masks
+        npr = npr_;  // number of protos
+        no = 5 + nc_ + nm_;  // number of outputs per anchor
+
+        for (size_t i = 0; i < ch_.size(); i++)
+        {
+            m->push_back(torch::nn::Conv2d(Conv2dOptions(ch_[i], no * na, 1).bias(true)));
+        }
+        register_module("m", m);
+        proto = ModuleHolder<Proto>(ch_[0], npr, nm);
+        register_module("proto", proto);
+    }
+    ModuleList m;
+    int nm, npr, no;
+    ModuleHolder<Proto> proto{nullptr};
+};
 
 ModuleList parse_model(std::string f = "C:/Users/77274/projects/MJ/libtorch-yolov5/data/yolov5s.yaml", int img_channels = 3)
 {

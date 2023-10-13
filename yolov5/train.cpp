@@ -41,6 +41,7 @@ void train(ModuleHolder<DetectionModel> &network, DataLoader &loader, torch::opt
 
 int main(int argc, char const *argv[])
 {
+    
     YAML::Node config = YAML::LoadFile("/workspace/learningDL/yolov5/data/custom.yaml");
     std::map<std::string, float> hyp;
     hyp = config.as<std::map<std::string, float>>();
@@ -121,7 +122,7 @@ int main(int argc, char const *argv[])
     auto train_loader =
         torch::data::make_data_loader<torch::data::samplers::SequentialSampler>(
             std::move(train_set), 4);
-    int epoch = 100;
+    int epoch = 30;
     for (size_t i = 0; i < epoch; i++)
     {
         std::cout << "epoch i = " << i << std::endl;

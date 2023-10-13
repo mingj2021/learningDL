@@ -41,12 +41,12 @@ public:
     {
         // std::cout << data[index].first << std::endl;
         cv::Mat img = cv::imread(data[index].first);
-        int h0 = img.rows;
-        int w0 = img.cols;
-        cv::resize(img, img, cv::Size(int(w0 * 0.25), int(h0 * 0.25)), 0, 0, cv::INTER_LINEAR);
+        int h0 = 640;
+        int w0 = 640;
+        cv::resize(img, img, cv::Size(int(w0 ), int(h0 )), 0, 0, cv::INTER_LINEAR);
         // std::cout << img.size() << std::endl;
         cv::Mat mask = cv::imread(data[index].second, 0);
-        cv::resize(mask, mask, cv::Size(int(w0 * 0.25), int(h0 * 0.25)), 0, 0, cv::INTER_LINEAR);
+        cv::resize(mask, mask, cv::Size(int(w0 ), int(h0 )), 0, 0, cv::INTER_LINEAR);
 
         cv::cvtColor(img, img, cv::COLOR_BGR2RGB);
         img.convertTo(img, CV_32F, 1.0 / 255);
@@ -59,7 +59,7 @@ public:
         // std::cout << "inputs = " << inputs.sizes() << std::endl;
 
         // cv::cvtColor(mask, mask, cv::COLOR_BGR2RGB);
-        mask.convertTo(mask, CV_32F, 1.0 / 255);
+        mask.convertTo(mask, CV_32F, 1.0);
 
         torch::Tensor targets =
             torch::from_blob(mask.data, {mask.rows, mask.cols})
@@ -178,9 +178,9 @@ public:
     {
         // std::cout << data[index].first << std::endl;
         cv::Mat img = cv::imread(data[index].first);
-        // int h0 = 640;
-        // int w0 = 640;
-        // cv::resize(img, img, cv::Size(w0, h0), 0, 0, cv::INTER_LINEAR);
+        int h0 = 640;
+        int w0 = 640;
+        cv::resize(img, img, cv::Size(w0, h0), 0, 0, cv::INTER_LINEAR);
         // std::cout << img.size() << std::endl;
 
         cv::cvtColor(img, img, cv::COLOR_BGR2RGB);
@@ -194,7 +194,7 @@ public:
                 .clone();
 
         cv::Mat img2 = cv::imread(data[index].second);
-        // cv::resize(img2, img2, cv::Size(w0, h0), 0, 0, cv::INTER_LINEAR);
+        cv::resize(img2, img2, cv::Size(w0, h0), 0, 0, cv::INTER_LINEAR);
 
         cv::cvtColor(img2, img2, cv::COLOR_BGR2RGB);
         torch::Tensor x = torch::from_blob(img2.data, {img2.rows, img2.cols, img2.channels()}, torch::kU8).detach().clone();

@@ -88,7 +88,7 @@ void val(ModuleHolder<DetectionModel> &network, DataLoader &loader)
         for (int si = 0; si < nb; si++)
         {
             auto pred = pds[si];
-            std::cout << "pred = " << pred.sizes() << std::endl;
+            // std::cout << "pred = " << pred.sizes() << std::endl;
             auto labels = targets.index({targets.index({Slice(), 0}) == si, Slice(1)});
             int nl = labels.size(0);
             int npr = pred.size(0);
